@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>兒童游泳課 · 即時名額</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Noto+Sans+TC:wght@400;500;600;700&display=swap');
+
+  :root{
+    --pool-deep: #0B5E68;
+    --pool: #0E7C8C;
+    --pool-light: #DFF3F2;
+    --pool-mist: #F3FAF9;
+    --sun: #FFB238;
+    --coral: #FF6B57;
+    --ink: #0B3A3E;
+    --ink-soft: #4C7377;
+    --line: #CDE7E4;
+    --white: #FFFFFF;
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(1200px 600px at 10% -10%, #E7F6F4 0%, transparent 60%),
+      var(--pool-mist);
+    font-family:'Noto Sans TC','PingFang TC','Microsoft JhengHei',sans-serif;
+    color:var(--ink);
+    min-height:100vh;
+    padding:28px 16px 60px;
+  }
+
+  .wrap{max-width:640px;margin:0 auto;}
+
+  header{margin-bottom:22px;}
+  .eyebrow-row{
+    display:flex;align-items:center;gap:10px;margin-bottom:10px;
+  }
+  .wave-icon{width:34px;height:34px;flex:0 0 auto;}
+  h1{
+    font-family:'Baloo 2',sans-serif;
+    font-weight:800;
+    font-size:26px;
+    line-height:1.25;
+    margin:0 0 6px;
+    color:var(--pool-deep);
+  }
+  .sub{
+    font-size:14.5px;
+    color:var(--ink-soft);
+    line-height:1.6;
+    margin:0;
+  }
+
+  .status-bar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    background:var(--white);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:10px 14px;
+    margin:18px 0 24px;
+    font-size:13px;
+    color:var(--ink-soft);
+  }
+  .status-bar button{
+    border:none;
+    background:var(--pool);
+    color:#fff;
+    font-family:inherit;
+    font-size:13px;
+    font-weight:600;
+    padding:7px 14px;
+    border-radius:100px;
+    cursor:pointer;
+    transition:background .15s ease;
+  }
+  .status-bar button:hover{background:var(--pool-deep);}
+  .status-bar button:disabled{opacity:.5;cursor:default;}
+
+  .legend{
+    display:flex;
+    gap:16px;
+    flex-wrap:wrap;
+    font-size:12.5px;
+    color:var(--ink-soft);
+    margin-bottom:18px;
+  }
+  .legend span{display:inline-flex;align-items:center;gap:6px;}
+  .dot{width:9px;height:9px;border-radius:50%;display:inline-block;}
+
+  .date-group{margin-bottom:26px;}
+  .date-heading{
+    font-family:'Baloo 2',sans-serif;
+    font-weight:700;
+    font-size:16px;
+    color:var(--pool-deep);
+    display:flex;
+    align-items:baseline;
+    gap:8px;
+    margin:0 0 10px 2px;
+    padding-left:2px;
+    border-left:4px solid var(--sun);
+    padding-left:10px;
+  }
+  .date-heading .wd{
+    font-size:12.5px;
+    font-weight:500;
+    color:var(--ink-soft);
+  }
+
+  .card{
+    background:var(--white);
+    border:1px solid var(--line);
+    border-radius:16px;
+    padding:14px 16px;
+    margin-bottom:10px;
+    display:flex;
+    align-items:center;
+    gap:14px;
+  }
+  .card.full{
+    background:#F5F5F3;
+    border-color:#E3E2DD;
+  }
+  .card.low{
+    border-color:#FFD4C7;
+    background:#FFF8F5;
+  }
+
+  .card-main{flex:1;min-width:0;}
+  .time{
+    font-size:13px;
+    color:var(--ink-soft);
+    font-weight:500;
+    margin-bottom:2px;
+  }
+  .class-name{
+    font-size:15.5px;
+    font-weight:700;
+    color:var(--ink);
+    margin-bottom:8px;
+    word-break:break-word;
+  }
+  .bar-track{
+    height:6px;
+    width:100%;
+    background:var(--pool-light);
+    border-radius:100px;
+    overflow:hidden;
+  }
+  .bar-fill{
+    height:100%;
+    background:var(--pool);
+    border-radius:100px;
+    transition:width .4s ease;
+  }
+  .card.low .bar-fill{background:var(--coral);}
+  .card.full .bar-fill{background:#B8B6AE;}
+
+  .count{
+    flex:0 0 auto;
+    text-align:center;
+    min-width:64px;
+  }
+  .count .num{
+    font-family:'Baloo 2',sans-serif;
+    font-weight:800;
+    font-size:26px;
+    line-height:1;
+    color:var(--pool-deep);
+  }
+  .card.low .count .num{color:var(--coral);}
+  .card.full .count .num{color:#9B9993;}
+  .count .label{
+    font-size:11px;
+    color:var(--ink-soft);
+    margin-top:3px;
+  }
+  .full-tag{
+    font-size:12px;
+    font-weight:700;
+    color:#9B9993;
+    background:#EAE9E4;
+    padding:3px 10px;
+    border-radius:100px;
+    display:inline-block;
+  }
+
+  .empty, .error{
+    text-align:center;
+    padding:50px 20px;
+    color:var(--ink-soft);
+    font-size:14px;
+    background:var(--white);
+    border-radius:16px;
+    border:1px solid var(--line);
+  }
+  .error{color:var(--coral);}
+
+  footer{
+    text-align:center;
+    font-size:12px;
+    color:var(--ink-soft);
+    margin-top:30px;
+    line-height:1.7;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow-row">
+      <svg class="wave-icon" viewBox="0 0 48 48" fill="none">
+        <circle cx="24" cy="24" r="24" fill="#0E7C8C"/>
+        <path d="M8 20c3-3 6-3 9 0s6 3 9 0 6-3 9 0" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round" fill="none"/>
+        <path d="M8 28c3-3 6-3 9 0s6 3 9 0 6-3 9 0" stroke="#FFB238" stroke-width="2.4" stroke-linecap="round" fill="none"/>
+      </svg>
+      <h1>兒童游泳團體班 · 即時名額</h1>
+    </div>
+    <p class="sub">看看目前每個時段還有幾個名額，確定好想上的班別後，再填寫下方報名表單。</p>
+  </header>
+
+  <div class="status-bar">
+    <span id="statusText">讀取名額資料中…</span>
+    <button id="refreshBtn">重新整理</button>
+  </div>
+
+  <div class="legend">
+    <span><i class="dot" style="background:var(--pool)"></i>名額充足</span>
+    <span><i class="dot" style="background:var(--coral)"></i>僅剩少數名額</span>
+    <span><i class="dot" style="background:#B8B6AE"></i>已額滿</span>
+  </div>
+
+  <div id="content"></div>
+
+  <footer>資料每次開啟本頁面時會自動更新，如與現場登記略有落差，仍以櫃檯確認為準。</footer>
+</div>
+
+<script>
+// Google Apps Script 部署的網頁應用程式網址，只回傳「名額統計」分頁的資料，不含任何個資
+const API_URL = "https://script.google.com/macros/s/AKfycbxnvhJor56eRAoDLsGQLIJurlVQU8iItpmlBLCmL6sRaEyA9AvA9KPkoFAxHvPBDAWmSA/exec";
+
+const contentEl = document.getElementById('content');
+const statusEl = document.getElementById('statusText');
+const refreshBtn = document.getElementById('refreshBtn');
+
+function parseCSV(text){
+  const lines = text.trim().split(/\r?\n/);
+  const rows = lines.map(line => line.split(','));
+  const header = rows[0];
+  return rows.slice(1).filter(r => r.length > 1 && r[0].trim() !== '').map(r => {
+    const obj = {};
+    header.forEach((h, i) => obj[h.trim()] = (r[i] || '').trim());
+    return obj;
+  });
+}
+
+// 班別欄位格式類似 "9/2(三) 17:00 幼4-A"，拆出日期與內容
+function splitClassName(name){
+  const m = name.match(/^(\d{1,2}\/\d{1,2}\([一二三四五六日]\))\s*(.*)$/);
+  if(m){
+    return { date: m[1], rest: m[2] };
+  }
+  return { date: '', rest: name };
+}
+
+function render(rows){
+  if(rows.length === 0){
+    contentEl.innerHTML = '<div class="empty">目前沒有可顯示的班別資料。</div>';
+    return;
+  }
+
+  // 依日期分組，並保留原始出現順序
+  const groups = [];
+  const groupIndex = {};
+
+  rows.forEach(row => {
+    const { date, rest } = splitClassName(row['班別'] || '');
+    const key = date || '其他';
+    if(!(key in groupIndex)){
+      groupIndex[key] = groups.length;
+      groups.push({ date: key, items: [] });
+    }
+    groups[groupIndex[key]].items.push({ rest, row });
+  });
+
+  contentEl.innerHTML = groups.map(g => {
+    const wdMatch = g.date.match(/\(([一二三四五六日])\)/);
+    const wd = wdMatch ? '星期' + wdMatch[1] : '';
+    const dateOnly = g.date.replace(/\([一二三四五六日]\)/, '');
+
+    const cards = g.items.map(({ rest, row }) => {
+      const cap = parseInt(row['上限'], 10) || 0;
+      const passed = parseInt(row['已通過'], 10) || 0;
+      const remain = row['剩餘'] !== undefined && row['剩餘'] !== '' ? parseInt(row['剩餘'], 10) : (cap - passed);
+      const pct = cap > 0 ? Math.min(100, Math.round((passed / cap) * 100)) : 0;
+
+      const timeMatch = rest.match(/^(\d{1,2}:\d{2})\s*(.*)$/);
+      const time = timeMatch ? timeMatch[1] : '';
+      const className = timeMatch ? timeMatch[2] : rest;
+
+      let cardClass = '';
+      let countBlock = '';
+      if(remain <= 0){
+        cardClass = 'full';
+        countBlock = '<span class="full-tag">已額滿</span>';
+      } else {
+        if(remain <= 2) cardClass = 'low';
+        countBlock = `<div class="num">${remain}</div><div class="label">剩餘名額</div>`;
+      }
+
+      return `
+        <div class="card ${cardClass}">
+          <div class="card-main">
+            <div class="time">${time || ''}</div>
+            <div class="class-name">${className}</div>
+            <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>
+          </div>
+          <div class="count">${countBlock}</div>
+        </div>`;
+    }).join('');
+
+    return `
+      <div class="date-group">
+        <div class="date-heading">${dateOnly}<span class="wd">${wd}</span></div>
+        ${cards}
+      </div>`;
+  }).join('');
+}
+
+async function load(){
+  refreshBtn.disabled = true;
+  statusEl.textContent = '讀取名額資料中…';
+  try{
+    const res = await fetch(API_URL + '?ts=' + Date.now());
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    const rows = await res.json();
+    if(rows && rows.error) throw new Error(rows.error);
+    render(rows);
+    const now = new Date();
+    statusEl.textContent = '最後更新：' + now.toLocaleString('zh-TW', { hour12:false });
+  } catch(err){
+    contentEl.innerHTML = '<div class="error">目前無法讀取名額資料，請稍後再試一次，或直接洽詢櫃檯。</div>';
+    statusEl.textContent = '讀取失敗';
+    console.error(err);
+  } finally {
+    refreshBtn.disabled = false;
+  }
+}
+
+refreshBtn.addEventListener('click', load);
+load();
+</script>
+</body>
+</html>
