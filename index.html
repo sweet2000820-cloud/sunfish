@@ -93,6 +93,38 @@
   .legend span{display:inline-flex;align-items:center;gap:6px;}
   .dot{width:9px;height:9px;border-radius:50%;display:inline-block;}
 
+  .month-tabs{
+    display:flex;
+    gap:8px;
+    margin-bottom:20px;
+    overflow-x:auto;
+    -webkit-overflow-scrolling:touch;
+    padding-bottom:2px;
+  }
+  .month-tabs::-webkit-scrollbar{display:none;}
+  .month-tab{
+    flex:0 0 auto;
+    font-family:'Baloo 2',sans-serif;
+    font-weight:700;
+    font-size:14.5px;
+    color:var(--pool-deep);
+    background:var(--white);
+    border:1px solid var(--line);
+    padding:9px 18px;
+    border-radius:100px;
+    cursor:pointer;
+    white-space:nowrap;
+    transition:background .15s ease,color .15s ease,border-color .15s ease;
+  }
+  .month-tab.active{
+    background:var(--pool);
+    border-color:var(--pool);
+    color:#fff;
+  }
+
+  .month-panel{display:none;}
+  .month-panel.active{display:block;}
+
   .date-group{margin-bottom:26px;}
   .date-heading{
     font-family:'Baloo 2',sans-serif;
@@ -223,7 +255,7 @@
       </svg>
       <h1>兒童游泳團體班 · 即時名額</h1>
     </div>
-    <p class="sub">看看目前每個時段還有幾個名額，確定好想上的班別後，再到官方賴點選游泳團體班報名，填寫google表單。</p>
+    <p class="sub">看看目前每個時段還有幾個名額，確定好想上的班別後，再填寫下方報名表單。</p>
   </header>
 
   <div class="status-bar">
@@ -237,19 +269,26 @@
     <span><i class="dot" style="background:#B8B6AE"></i>已額滿</span>
   </div>
 
+  <div id="monthTabs" class="month-tabs"></div>
   <div id="content"></div>
 
   <footer>資料每次開啟本頁面時會自動更新，如與現場登記略有落差，仍以櫃檯確認為準。</footer>
-  <footer>僅供參考目前及時課程報名現況，若想報名請於櫃檯繳費後，填寫google表單，感謝您的配合。</footer>
 </div>
 
 <script>
 // Google Apps Script 部署的網頁應用程式網址，只回傳「名額統計」分頁的資料，不含任何個資
-const API_URL = "https://script.google.com/macros/s/AKfycbxnvhJor56eRAoDLsGQLIJurlVQU8iItpmlBLCmL6sRaEyA9AvA9KPkoFAxHvPBDAWmSA/exec";
+// 每個月份各自獨立的表單/試算表，都各有一組自己的 API 網址
+const API_URLS = [
+  "https://script.google.com/macros/s/AKfycbxnvhJor56eRAoDLsGQLIJurlVQU8iItpmlBLCmL6sRaEyA9AvA9KPkoFAxHvPBDAWmSA/exec",
+  "https://script.google.com/macros/s/AKfycbwT159DsiX2e_QEohh2xtn0PkbM9mx43tUVUcy8kMRz0y8Ciz0SNjZkXaiZioZSa6cT/exec"
+];
 
 const contentEl = document.getElementById('content');
+const monthTabsEl = document.getElementById('monthTabs');
 const statusEl = document.getElementById('statusText');
 const refreshBtn = document.getElementById('refreshBtn');
+
+const MONTH_NAMES = ['一月','二月','三月','四月','五月','六月','七月','八月','九月','十月','十一月','十二月'];
 
 function parseCSV(text){
   const lines = text.trim().split(/\r?\n/);
@@ -271,18 +310,43 @@ function splitClassName(name){
   return { date: '', rest: name };
 }
 
-function render(rows){
-  if(rows.length === 0){
-    contentEl.innerHTML = '<div class="empty">目前沒有可顯示的班別資料。</div>';
-    return;
+function renderCard(row, rest){
+  const cap = parseInt(row['上限'], 10) || 0;
+  const passed = parseInt(row['已通過'], 10) || 0;
+  const remain = row['剩餘'] !== undefined && row['剩餘'] !== '' ? parseInt(row['剩餘'], 10) : (cap - passed);
+  const pct = cap > 0 ? Math.min(100, Math.round((passed / cap) * 100)) : 0;
+
+  const timeMatch = rest.match(/^(\d{1,2}:\d{2})\s*(.*)$/);
+  const time = timeMatch ? timeMatch[1] : '';
+  const className = timeMatch ? timeMatch[2] : rest;
+
+  let cardClass = '';
+  let countBlock = '';
+  if(remain <= 0){
+    cardClass = 'full';
+    countBlock = '<span class="full-tag">已額滿</span>';
+  } else {
+    if(remain <= 2) cardClass = 'low';
+    countBlock = `<div class="num">${remain}</div><div class="label">剩餘名額</div>`;
   }
 
-  // 依日期分組，並保留原始出現順序
+  return `
+    <div class="card ${cardClass}">
+      <div class="card-main">
+        <div class="time">${time || ''}</div>
+        <div class="class-name">${className}</div>
+        <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>
+      </div>
+      <div class="count">${countBlock}</div>
+    </div>`;
+}
+
+function renderDateGroups(items){
+  // items: [{ date, rest, row }]，依日期分組，保留原始出現順序
   const groups = [];
   const groupIndex = {};
 
-  rows.forEach(row => {
-    const { date, rest } = splitClassName(row['班別'] || '');
+  items.forEach(({ date, rest, row }) => {
     const key = date || '其他';
     if(!(key in groupIndex)){
       groupIndex[key] = groups.length;
@@ -291,41 +355,11 @@ function render(rows){
     groups[groupIndex[key]].items.push({ rest, row });
   });
 
-  contentEl.innerHTML = groups.map(g => {
+  return groups.map(g => {
     const wdMatch = g.date.match(/\(([一二三四五六日])\)/);
     const wd = wdMatch ? '星期' + wdMatch[1] : '';
     const dateOnly = g.date.replace(/\([一二三四五六日]\)/, '');
-
-    const cards = g.items.map(({ rest, row }) => {
-      const cap = parseInt(row['上限'], 10) || 0;
-      const passed = parseInt(row['已通過'], 10) || 0;
-      const remain = row['剩餘'] !== undefined && row['剩餘'] !== '' ? parseInt(row['剩餘'], 10) : (cap - passed);
-      const pct = cap > 0 ? Math.min(100, Math.round((passed / cap) * 100)) : 0;
-
-      const timeMatch = rest.match(/^(\d{1,2}:\d{2})\s*(.*)$/);
-      const time = timeMatch ? timeMatch[1] : '';
-      const className = timeMatch ? timeMatch[2] : rest;
-
-      let cardClass = '';
-      let countBlock = '';
-      if(remain <= 0){
-        cardClass = 'full';
-        countBlock = '<span class="full-tag">已額滿</span>';
-      } else {
-        if(remain <= 2) cardClass = 'low';
-        countBlock = `<div class="num">${remain}</div><div class="label">剩餘名額</div>`;
-      }
-
-      return `
-        <div class="card ${cardClass}">
-          <div class="card-main">
-            <div class="time">${time || ''}</div>
-            <div class="class-name">${className}</div>
-            <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>
-          </div>
-          <div class="count">${countBlock}</div>
-        </div>`;
-    }).join('');
+    const cards = g.items.map(({ rest, row }) => renderCard(row, rest)).join('');
 
     return `
       <div class="date-group">
@@ -335,17 +369,94 @@ function render(rows){
   }).join('');
 }
 
+function render(rows){
+  if(rows.length === 0){
+    monthTabsEl.innerHTML = '';
+    contentEl.innerHTML = '<div class="empty">目前沒有可顯示的班別資料。</div>';
+    return;
+  }
+
+  // 先依月份分組，月份內再依日期分組，皆保留原始出現順序
+  const months = [];
+  const monthIndex = {};
+
+  rows.forEach(row => {
+    const { date, rest } = splitClassName(row['班別'] || '');
+    const monthMatch = date.match(/^(\d{1,2})\//);
+    const monthNum = monthMatch ? parseInt(monthMatch[1], 10) : 0;
+    const monthKey = monthNum || '其他';
+
+    if(!(monthKey in monthIndex)){
+      monthIndex[monthKey] = months.length;
+      months.push({ key: monthKey, label: monthNum ? MONTH_NAMES[monthNum - 1] : '其他', items: [] });
+    }
+    months[monthIndex[monthKey]].items.push({ date, rest, row });
+  });
+
+  // 分頁籤：只有一個月份時就不顯示分頁籤，直接顯示內容
+  if(months.length <= 1){
+    monthTabsEl.innerHTML = '';
+    contentEl.innerHTML = renderDateGroups(months[0] ? months[0].items : []);
+    return;
+  }
+
+  monthTabsEl.innerHTML = months.map((m, i) =>
+    `<button class="month-tab${i === 0 ? ' active' : ''}" data-month-idx="${i}">${m.label}</button>`
+  ).join('');
+
+  contentEl.innerHTML = months.map((m, i) =>
+    `<div class="month-panel${i === 0 ? ' active' : ''}" data-panel-idx="${i}">${renderDateGroups(m.items)}</div>`
+  ).join('');
+
+  monthTabsEl.querySelectorAll('.month-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      const idx = tab.getAttribute('data-month-idx');
+      monthTabsEl.querySelectorAll('.month-tab').forEach(t => t.classList.remove('active'));
+      contentEl.querySelectorAll('.month-panel').forEach(p => p.classList.remove('active'));
+      tab.classList.add('active');
+      contentEl.querySelector(`.month-panel[data-panel-idx="${idx}"]`).classList.add('active');
+    });
+  });
+}
+
+async function fetchOne(url){
+  const res = await fetch(url + (url.includes('?') ? '&' : '?') + 'ts=' + Date.now());
+  if(!res.ok) throw new Error('HTTP ' + res.status);
+  const rows = await res.json();
+  if(rows && rows.error) throw new Error(rows.error);
+  return Array.isArray(rows) ? rows : [];
+}
+
 async function load(){
   refreshBtn.disabled = true;
   statusEl.textContent = '讀取名額資料中…';
   try{
-    const res = await fetch(API_URL + '?ts=' + Date.now());
-    if(!res.ok) throw new Error('HTTP ' + res.status);
-    const rows = await res.json();
-    if(rows && rows.error) throw new Error(rows.error);
-    render(rows);
+    // 同時打多個月份各自的 API，任一個失敗不影響其他月份正常顯示
+    const results = await Promise.allSettled(API_URLS.map(fetchOne));
+
+    let allRows = [];
+    let anySuccess = false;
+    let anyFail = false;
+
+    results.forEach(r => {
+      if(r.status === 'fulfilled'){
+        anySuccess = true;
+        allRows = allRows.concat(r.value);
+      } else {
+        anyFail = true;
+        console.error('讀取其中一個月份失敗', r.reason);
+      }
+    });
+
+    if(!anySuccess){
+      throw new Error('所有月份都讀取失敗');
+    }
+
+    render(allRows);
     const now = new Date();
-    statusEl.textContent = '最後更新：' + now.toLocaleString('zh-TW', { hour12:false });
+    statusEl.textContent = anyFail
+      ? '最後更新：' + now.toLocaleString('zh-TW', { hour12:false }) + '（部分月份讀取失敗）'
+      : '最後更新：' + now.toLocaleString('zh-TW', { hour12:false });
   } catch(err){
     contentEl.innerHTML = '<div class="error">目前無法讀取名額資料，請稍後再試一次，或直接洽詢櫃檯。</div>';
     statusEl.textContent = '讀取失敗';
